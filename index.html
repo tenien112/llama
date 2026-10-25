@@ -232,6 +232,8 @@ function preparaLlamada(c){
     cuentaTimer = setTimeout(() => llamar(c, tels[0]), 1000);
     return;
   }
+  // Si el toque en el micro es reciente, el navegador deja abrir el teléfono sin más preguntas
+  if (navigator.userActivation && navigator.userActivation.isActive){ llamar(c, tels[0]); return; }
   // El navegador solo deja abrir una llamada tras un toque: botón grande para llamar
   $("estado").textContent = "¿Llamo a " + c.nombre + "?";
   const b = document.createElement("button"); b.type = "button"; b.className = "grande";
@@ -453,7 +455,7 @@ pintaMacro();
 if (contactos.length && SR) setTimeout(() => { try{ escucha(); }catch(e){} }, 600);
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-5";
+const APP_VERSION = "2026.10.25-6";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
