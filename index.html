@@ -90,6 +90,8 @@ footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
   <div class="panel">
     <h2>Contactos <button class="iconbtn" id="cerrarHoja" type="button">✕</button></h2>
     <button class="btnv" id="importar" type="button">📥 Traer contactos del móvil</button>
+    <button class="btnv" id="importarVcf" type="button">📂 Importar archivo de contactos (.vcf)</button>
+    <input type="file" id="vcf" accept=".vcf,text/vcard,text/x-vcard,text/directory,*/*" hidden>
     <button class="btnb" id="mostrarForm" type="button">➕ Añadir a mano</button>
     <form class="form" id="formContacto" hidden>
       <input id="cNombre" placeholder="Nombre (p. ej. Fulanico)" required>
@@ -342,6 +344,73 @@ $("importar").onclick = async () => {
   }catch(e){ if (e && e.name !== "AbortError") toast("No se pudieron traer los contactos"); }
 };
 
+// ---------- Importar archivo .vcf (exportado desde la app Contactos) ----------
+$("importarVcf").onclick = () => $("vcf").click();
+$("vcf").onchange = async () => {
+  const f = $("vcf").files[0]; if (!f) return;
+  try{
+    const lista = leeVcf(await f.text());
+    let nuevos = 0, act = 0;
+    for (const {nombre, tels} of lista){
+      const ya = contactos.find(c => normaliza(c.nombre) === normaliza(nombre));
+      if (ya){ const antes = ya.tels.length; ya.tels = unicos([...(ya.tels || []), ...tels]); if (ya.tels.length > antes) act++; }
+      else { contactos.push({id: nid(), nombre, tels: unicos(tels), apodos: []}); nuevos++; }
+    }
+    guardar();
+    toast(lista.length ? (nuevos + " contactos importados" + (act ? ", " + act + " actualizados" : "")) : "El archivo no tiene contactos con teléfono", 5000);
+  }catch(e){ toast("No he podido leer ese archivo"); }
+  $("vcf").value = "";
+};
+function ultimos9(t){ const d = (t || "").replace(/\D/g, ""); return d.length > 9 ? d.slice(-9) : d; }
+function unicos(tels){ const vistos = new Set(), r = []; for (const t of tels){ const k = ultimos9(t); if (k && !vistos.has(k)){ vistos.add(k); r.push(t); } } return r; }
+function decodQP(v){
+  // Samsung guarda los nombres con tildes en «quoted-printable»
+  const bytes = []; const t = v.replace(/=\r?\n/g, "");
+  for (let i = 0; i < t.length; i++){
+    if (t[i] === "=" && /^[0-9A-F]{2}$/i.test(t.substr(i + 1, 2))){ bytes.push(parseInt(t.substr(i + 1, 2), 16)); i += 2; }
+    else bytes.push(t.charCodeAt(i) & 0xFF);
+  }
+  try{ return new TextDecoder("utf-8").decode(new Uint8Array(bytes)); }catch(e){ return t; }
+}
+function leeVcf(txt){
+  // Une líneas partidas (las que empiezan por espacio y las de quoted-printable acabadas en =)
+  const crudas = txt.replace(/\r\n/g, "\n").split("\n"), lineas = [];
+  for (const l of crudas){
+    const ant = lineas.length ? lineas[lineas.length - 1] : null;
+    if (ant !== null && /^[ \t]/.test(l)) lineas[lineas.length - 1] = ant + l.slice(1);
+    else if (ant !== null && /QUOTED-PRINTABLE/i.test(ant) && /=$/.test(ant)) lineas[lineas.length - 1] = ant.slice(0, -1) + l;
+    else lineas.push(l);
+  }
+  const out = []; let cur = null;
+  for (const l of lineas){
+    const u = l.toUpperCase();
+    if (u.startsWith("BEGIN:VCARD")){ cur = {fn: "", n: "", org: "", tels: []}; continue; }
+    if (u.startsWith("END:VCARD")){
+      if (cur){
+        let nombre = cur.fn.trim();
+        if (!nombre && cur.n){ const p = cur.n.split(";"); nombre = [p[3], p[1], p[2], p[0], p[4]].filter(Boolean).join(" ").trim(); }
+        if (!nombre) nombre = cur.org.trim();
+        const tels = cur.tels.map(t => t.replace(/[^\d+]/g, "")).filter(t => t.length >= 3);
+        if (nombre && tels.length) out.push({nombre, tels});
+      }
+      cur = null; continue;
+    }
+    if (!cur) continue;
+    const i = l.indexOf(":"); if (i < 0) continue;
+    const cab = l.slice(0, i), cabU = cab.toUpperCase().replace(/^ITEM\d+\./, "");
+    let val = l.slice(i + 1);
+    if (/QUOTED-PRINTABLE/i.test(cab)) val = decodQP(val);
+    val = val.replace(/\\([,;])/g, "$1");
+    if (cabU.startsWith("FN")) cur.fn = val;
+    else if (cabU === "N" || cabU.startsWith("N;")) cur.n = val;
+    else if (cabU.startsWith("ORG")) cur.org = val.split(";")[0];
+    else if (cabU.startsWith("TEL")){
+      // El móvil, primero
+      if (/CELL|MOBILE|PREF/i.test(cab)) cur.tels.unshift(val.replace(/^tel:/i, "")); else cur.tels.push(val.replace(/^tel:/i, ""));
+    }
+  }
+  return out;
+}
 $("buscaC").oninput = pintaLista;
 function pintaMacro(){
   const m = store("llama_macro");
@@ -383,7 +452,7 @@ pintaMacro();
 if (contactos.length && SR) setTimeout(() => { try{ escucha(); }catch(e){} }, 600);
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-3";
+const APP_VERSION = "2026.10.25-4";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
