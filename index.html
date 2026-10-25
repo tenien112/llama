@@ -75,7 +75,7 @@ footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
   <div id="elegir"></div>
 
   <form class="escribir" id="formEscribir">
-    <input id="texto" placeholder="O escríbelo: llama a…" autocomplete="off">
+    <input id="texto" placeholder="O escribe un nombre…" autocomplete="off">
     <button type="submit">Llamar</button>
   </form>
 
@@ -269,6 +269,22 @@ function procesa(frase){
   });
 }
 
+// Mientras escribe, enseña todos los contactos que contienen lo escrito
+$("texto").oninput = () => {
+  cancelaCuenta(); limpiaEleccion();
+  const q = normaliza(sacaNombre($("texto").value) || $("texto").value);
+  if (!q){ $("estado").textContent = "Pulsa y di «llama a…»"; return; }
+  const hay = contactos.filter(c => [c.nombre, ...(c.apodos || [])].some(n => normaliza(n).includes(q)))
+    .sort((a, b) => (b.usos || 0) - (a.usos || 0) || a.nombre.localeCompare(b.nombre, "es"));
+  if (!hay.length){ $("estado").textContent = "Nadie contiene «" + q + "»"; return; }
+  $("estado").textContent = hay.length === 1 ? "Toca para llamar" : hay.length + " contactos — toca uno";
+  hay.slice(0, 30).forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "op";
+    b.innerHTML = "<b></b><span></span>"; b.firstChild.textContent = c.nombre; b.lastChild.textContent = (c.tels || [])[0] || "";
+    b.onclick = () => { $("texto").value = ""; $("texto").blur(); preparaLlamada(c); };
+    $("elegir").appendChild(b);
+  });
+};
 $("formEscribir").onsubmit = e => { e.preventDefault(); const t = $("texto").value.trim(); if (t){ procesa(t); $("texto").value = ""; $("texto").blur(); } };
 
 // ---------- Micrófono ----------
@@ -455,7 +471,7 @@ pintaMacro();
 if (contactos.length && SR) setTimeout(() => { try{ escucha(); }catch(e){} }, 600);
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-6";
+const APP_VERSION = "2026.10.25-7";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
