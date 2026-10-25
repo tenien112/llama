@@ -31,6 +31,7 @@ main{width:100%;max-width:480px;flex:1;display:flex;flex-direction:column;align-
 #elegir{width:100%;margin-top:14px}
 .op{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px;margin-bottom:8px;border-radius:14px;border:1px solid var(--borde);background:var(--card);color:var(--txt);font-size:17px;text-align:left}
 .op span{color:var(--gris);font-size:14px}
+.grande{width:100%;border:none;border-radius:18px;background:var(--v);color:#fff;font-size:24px;font-weight:700;padding:26px 14px;margin-bottom:10px;box-shadow:0 8px 24px rgba(31,168,85,.35)}
 #cuenta{display:none;flex-direction:column;align-items:center;margin-top:10px}
 #cuenta button{margin-top:10px;border:none;border-radius:14px;background:var(--rojo);color:#fff;font-size:18px;padding:12px 30px}
 .aviso{font-size:13px;color:var(--gris);text-align:center;margin-top:16px;line-height:1.4}
@@ -199,17 +200,15 @@ function preparaLlamada(c){
     });
     return;
   }
-  // Cuenta atrás corta para poder cancelar si ha entendido mal
-  let s = 2;
-  $("estado").textContent = "📞 " + c.nombre;
-  $("cuenta").style.display = "flex";
-  $("cuentaTxt").textContent = "Llamando en " + s + "…";
-  cancelaCuenta(); $("cuenta").style.display = "flex";
-  cuentaTimer = setInterval(() => {
-    s--;
-    if (s <= 0){ llamar(c, tels[0]); return; }
-    $("cuentaTxt").textContent = "Llamando en " + s + "…";
-  }, 1000);
+  // El navegador solo deja abrir una llamada tras un toque: botón grande para llamar
+  $("estado").textContent = "¿Llamo a " + c.nombre + "?";
+  const b = document.createElement("button"); b.type = "button"; b.className = "grande";
+  b.textContent = "📞 Llamar a " + c.nombre;
+  b.onclick = () => llamar(c, tels[0]);
+  const x = document.createElement("button"); x.type = "button"; x.className = "op"; x.style.justifyContent = "center";
+  x.textContent = "No, era otro";
+  x.onclick = () => { limpiaEleccion(); $("estado").textContent = "Pulsa y di «llama a…»"; };
+  $("elegir").appendChild(b); $("elegir").appendChild(x);
 }
 $("cancelar").onclick = () => { cancelaCuenta(); $("estado").textContent = "Cancelado"; };
 
@@ -219,7 +218,7 @@ function procesa(frase){
   // Si dice un número, se marca tal cual
   const soloNum = frase.replace(/[^\d+]/g, "");
   if (soloNum.length >= 9 && soloNum.length >= frase.replace(/\s/g, "").length * 0.6){
-    $("estado").textContent = "📞 Llamando al " + soloNum; location.href = "tel:" + soloNum; return;
+    preparaLlamada({id: "num", nombre: soloNum, tels: [soloNum]}); return;
   }
   if (!contactos.length){ $("estado").textContent = "Primero añade tus contactos"; $("hoja").hidden = false; return; }
   const dicho = sacaNombre(frase);
@@ -339,7 +338,7 @@ function pintaLista(){
 $("avisoVacio").hidden = contactos.length > 0;
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-1";
+const APP_VERSION = "2026.10.25-2";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
