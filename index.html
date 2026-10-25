@@ -99,7 +99,7 @@ footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
       <input id="cApodo" placeholder="Otros nombres para llamarle (opcional, separados por comas)">
       <button class="btnv" type="submit" id="guardarC">Guardar</button>
     </form>
-    <details id="ajMacro" style="margin:4px 0 12px">
+    <details id="ajMacro" hidden style="margin:4px 0 12px">
       <summary style="font-size:15px;padding:8px 0">⚙️ Llamar directamente con MacroDroid</summary>
       <p class="aviso" style="text-align:left;margin:6px 0">Pega aquí la dirección del disparador Webhook de tu macro de MacroDroid. Se guarda solo en este móvil.</p>
       <input id="macroUrl" placeholder="https://trigger.macrodroid.com/…" autocomplete="off" style="width:100%;font-size:15px;padding:11px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--txt)">
@@ -193,7 +193,7 @@ function llamar(c, tel){
   cancelaCuenta(); limpiaEleccion();
   store("llama_ultimo", c.id);
   c.usos = (c.usos || 0) + 1; guardar();
-  const macro = store("llama_macro");
+  const macro = null; // MacroDroid desactivado: siempre abre el marcador
   if (macro){
     // MacroDroid recibe el número y llama solo, desde la SIM elegida en la macro
     $("estado").textContent = "📞 Llamando a " + c.nombre;
@@ -413,7 +413,8 @@ function leeVcf(txt){
 }
 $("buscaC").oninput = pintaLista;
 function pintaMacro(){
-  const m = store("llama_macro");
+  try{ localStorage.removeItem("llama_macro"); }catch(e){}
+  const m = null;
   $("macroUrl").value = m || "";
   $("modo").textContent = m ? "⚡ Llamada directa con MacroDroid" : "";
 }
@@ -452,7 +453,7 @@ pintaMacro();
 if (contactos.length && SR) setTimeout(() => { try{ escucha(); }catch(e){} }, 600);
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-4";
+const APP_VERSION = "2026.10.25-5";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
