@@ -65,6 +65,7 @@ footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
   <button id="mic" type="button" aria-label="Hablar">🎤</button>
   <div id="estado">Pulsa y di «llama a…»</div>
   <div id="oido"></div>
+  <div id="modo" style="font-size:13px;color:var(--v);margin-top:6px;font-weight:600"></div>
 
   <div id="cuenta">
     <div id="cuentaTxt"></div>
@@ -96,6 +97,13 @@ footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
       <input id="cApodo" placeholder="Otros nombres para llamarle (opcional, separados por comas)">
       <button class="btnv" type="submit" id="guardarC">Guardar</button>
     </form>
+    <details id="ajMacro" style="margin:4px 0 12px">
+      <summary style="font-size:15px;padding:8px 0">⚙️ Llamar directamente con MacroDroid</summary>
+      <p class="aviso" style="text-align:left;margin:6px 0">Pega aquí la dirección del disparador Webhook de tu macro de MacroDroid. Se guarda solo en este móvil.</p>
+      <input id="macroUrl" placeholder="https://trigger.macrodroid.com/…" autocomplete="off" style="width:100%;font-size:15px;padding:11px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--txt)">
+      <button class="btnv" id="guardarMacro" type="button" style="margin-top:8px">Guardar</button>
+      <button class="btnb" id="quitarMacro" type="button">Quitar (volver al marcador)</button>
+    </details>
     <input id="buscaC" placeholder="Buscar contacto…" autocomplete="off">
     <div id="lista"></div>
   </div>
@@ -177,14 +185,29 @@ function busca(dicho){
 // ---------- Llamar ----------
 let cuentaTimer = null;
 function limpiaEleccion(){ $("elegir").innerHTML = ""; }
-function cancelaCuenta(){ clearInterval(cuentaTimer); cuentaTimer = null; $("cuenta").style.display = "none"; }
+function cancelaCuenta(){ clearTimeout(cuentaTimer); clearInterval(cuentaTimer); cuentaTimer = null; $("cuenta").style.display = "none"; }
 
 function llamar(c, tel){
   cancelaCuenta(); limpiaEleccion();
   store("llama_ultimo", c.id);
   c.usos = (c.usos || 0) + 1; guardar();
+  const macro = store("llama_macro");
+  if (macro){
+    // MacroDroid recibe el número y llama solo, desde la SIM elegida en la macro
+    $("estado").textContent = "📞 Llamando a " + c.nombre;
+    const url = macro + (macro.includes("?") ? "&" : "?") + "numero=" + encodeURIComponent(limpiaTel(tel));
+    fetch(url, {mode: "no-cors", cache: "no-store"})
+      .catch(() => { $("estado").textContent = "No he podido avisar a MacroDroid"; botonMarcador(c, tel); });
+    return;
+  }
   $("estado").textContent = "📞 Llamando a " + c.nombre;
   location.href = "tel:" + limpiaTel(tel);
+}
+function botonMarcador(c, tel){
+  const b = document.createElement("button"); b.type = "button"; b.className = "grande";
+  b.textContent = "📞 Llamar con el teléfono";
+  b.onclick = () => { location.href = "tel:" + limpiaTel(tel); };
+  $("elegir").appendChild(b);
 }
 
 function preparaLlamada(c){
@@ -198,6 +221,13 @@ function preparaLlamada(c){
       b.innerHTML = "<b></b><span></span>"; b.firstChild.textContent = c.nombre; b.lastChild.textContent = t;
       b.onclick = () => llamar(c, t); $("elegir").appendChild(b);
     });
+    return;
+  }
+  if (store("llama_macro")){
+    $("estado").textContent = "📞 " + c.nombre;
+    $("cuentaTxt").textContent = "Llamando…";
+    $("cuenta").style.display = "flex";
+    cuentaTimer = setTimeout(() => llamar(c, tels[0]), 1000);
     return;
   }
   // El navegador solo deja abrir una llamada tras un toque: botón grande para llamar
@@ -313,6 +343,18 @@ $("importar").onclick = async () => {
 };
 
 $("buscaC").oninput = pintaLista;
+function pintaMacro(){
+  const m = store("llama_macro");
+  $("macroUrl").value = m || "";
+  $("modo").textContent = m ? "⚡ Llamada directa con MacroDroid" : "";
+}
+$("guardarMacro").onclick = () => {
+  let u = $("macroUrl").value.trim();
+  const m = u.match(/https?:\/\/trigger\.macrodroid\.com\/[^\s?]+/i);
+  if (!m){ toast("Eso no parece la dirección de MacroDroid (empieza por https://trigger.macrodroid.com/)", 5000); return; }
+  store("llama_macro", m[0].replace(/^http:/i, "https:")); pintaMacro(); toast("Listo: ahora llama directamente");
+};
+$("quitarMacro").onclick = () => { try{ localStorage.removeItem("llama_macro"); }catch(e){} pintaMacro(); toast("Vuelve a usar el marcador"); };
 function pintaLista(){
   const q = normaliza($("buscaC").value);
   const l = $("lista"); l.innerHTML = "";
@@ -336,9 +378,12 @@ function pintaLista(){
   if (!l.children.length) l.innerHTML = '<p class="aviso">' + (contactos.length ? "Ninguno coincide" : "Sin contactos todavía") + "</p>";
 }
 $("avisoVacio").hidden = contactos.length > 0;
+pintaMacro();
+// Al abrir la app, se pone a escuchar directamente (si el navegador lo permite)
+if (contactos.length && SR) setTimeout(() => { try{ escucha(); }catch(e){} }, 600);
 
 // ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
-const APP_VERSION = "2026.10.25-2";
+const APP_VERSION = "2026.10.25-3";
 (() => {
   const prev = store("llama_version");
   store("llama_version", APP_VERSION);
