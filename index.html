@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LLAMA-LORENZITO</title>
+<meta name="theme-color" content="#1FA855">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--v:#1FA855;--vd:#178A45;--fondo:#F4F7F5;--card:#FFFFFF;--txt:#1B2420;--gris:#6B7770;--borde:#DDE5E0;--rojo:#D9473F}
+@media (prefers-color-scheme: dark){:root{--fondo:#101614;--card:#1A2320;--txt:#E8EFEB;--gris:#9AA8A1;--borde:#2A3632}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--fondo);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px 16px 24px}
+.top{width:100%;max-width:480px;display:flex;align-items:center;justify-content:space-between}
+h1{font-size:18px;letter-spacing:.5px;margin:4px 0}
+h1 small{display:block;font-size:11px;font-weight:500;color:var(--gris);letter-spacing:0}
+.iconbtn{border:1px solid var(--borde);background:var(--card);color:var(--txt);border-radius:12px;padding:8px 12px;font-size:15px}
+main{width:100%;max-width:480px;flex:1;display:flex;flex-direction:column;align-items:center}
+#mic{margin:36px 0 14px;width:190px;height:190px;border-radius:50%;border:none;background:var(--v);color:#fff;font-size:72px;box-shadow:0 10px 30px rgba(31,168,85,.35);transition:transform .15s}
+#mic:active{transform:scale(.96)}
+#mic.escuchando{background:var(--rojo);animation:pulso 1.2s infinite}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(217,71,63,.5)}70%{box-shadow:0 0 0 28px rgba(217,71,63,0)}100%{box-shadow:0 0 0 0 rgba(217,71,63,0)}}
+#estado{min-height:52px;text-align:center;font-size:20px;font-weight:600;padding:0 8px}
+#oido{min-height:22px;text-align:center;color:var(--gris);font-size:15px;margin-top:4px}
+.escribir{display:flex;gap:8px;width:100%;margin-top:18px}
+.escribir input{flex:1;font-size:16px;padding:12px;border-radius:12px;border:1px solid var(--borde);background:var(--card);color:var(--txt)}
+.escribir button{border:none;border-radius:12px;background:var(--v);color:#fff;font-size:16px;padding:0 16px}
+#elegir{width:100%;margin-top:14px}
+.op{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px;margin-bottom:8px;border-radius:14px;border:1px solid var(--borde);background:var(--card);color:var(--txt);font-size:17px;text-align:left}
+.op span{color:var(--gris);font-size:14px}
+#cuenta{display:none;flex-direction:column;align-items:center;margin-top:10px}
+#cuenta button{margin-top:10px;border:none;border-radius:14px;background:var(--rojo);color:#fff;font-size:18px;padding:12px 30px}
+.aviso{font-size:13px;color:var(--gris);text-align:center;margin-top:16px;line-height:1.4}
+footer{margin-top:28px;font-size:12px;color:var(--gris);text-align:center}
+/* Hoja de contactos */
+.hoja{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.hoja[hidden]{display:none}
+.panel{background:var(--fondo);width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px}
+.panel h2{font-size:18px;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center}
+.btnv{width:100%;border:none;border-radius:12px;background:var(--v);color:#fff;font-size:16px;padding:13px;margin-bottom:10px}
+.btnb{width:100%;border:1px solid var(--borde);border-radius:12px;background:var(--card);color:var(--txt);font-size:16px;padding:12px;margin-bottom:10px}
+.form{display:grid;gap:8px;margin-bottom:12px}
+.form input{font-size:16px;padding:11px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--txt)}
+.contacto{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--borde);margin-bottom:6px}
+.contacto .datos{flex:1;min-width:0}
+.contacto b{display:block;font-size:16px}
+.contacto small{color:var(--gris);font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contacto button{border:none;background:none;font-size:20px;padding:4px 6px;color:var(--txt)}
+#buscaC{width:100%;font-size:16px;padding:11px;border-radius:10px;border:1px solid var(--borde);background:var(--card);color:var(--txt);margin-bottom:10px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:#1B2420;color:#fff;padding:12px 18px;border-radius:14px;font-size:15px;transition:transform .3s;z-index:20;max-width:90%;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>📞 LLAMA-LORENZITO<small>Di «llama a…» y el nombre</small></h1>
+  <button class="iconbtn" id="abrirContactos" type="button">👥 Contactos</button>
+</div>
+
+<main>
+  <button id="mic" type="button" aria-label="Hablar">🎤</button>
+  <div id="estado">Pulsa y di «llama a…»</div>
+  <div id="oido"></div>
+
+  <div id="cuenta">
+    <div id="cuentaTxt"></div>
+    <button id="cancelar" type="button">Cancelar</button>
+  </div>
+
+  <div id="elegir"></div>
+
+  <form class="escribir" id="formEscribir">
+    <input id="texto" placeholder="O escríbelo: llama a…" autocomplete="off">
+    <button type="submit">Llamar</button>
+  </form>
+
+  <button class="btnb" id="install" type="button" hidden style="margin-top:14px">📲 Instalar la app</button>
+  <p class="aviso" id="avisoVacio" hidden>Aún no tienes contactos. Pulsa <b>👥 Contactos</b> para traerlos del móvil o añadirlos a mano.</p>
+</main>
+
+<footer>LLAMA-LORENZITO · by Lorenzo<br>© <span id="year"></span> Lorenzo Moreno Villalba</footer>
+
+<!-- Hoja de contactos -->
+<div class="hoja" id="hoja" hidden>
+  <div class="panel">
+    <h2>Contactos <button class="iconbtn" id="cerrarHoja" type="button">✕</button></h2>
+    <button class="btnv" id="importar" type="button">📥 Traer contactos del móvil</button>
+    <button class="btnb" id="mostrarForm" type="button">➕ Añadir a mano</button>
+    <form class="form" id="formContacto" hidden>
+      <input id="cNombre" placeholder="Nombre (p. ej. Fulanico)" required>
+      <input id="cTel" placeholder="Teléfono" inputmode="tel" required>
+      <input id="cApodo" placeholder="Otros nombres para llamarle (opcional, separados por comas)">
+      <button class="btnv" type="submit" id="guardarC">Guardar</button>
+    </form>
+    <input id="buscaC" placeholder="Buscar contacto…" autocomplete="off">
+    <div id="lista"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function store(k, v){
+  try{
+    if (v === undefined){ const r = localStorage.getItem(k); return r === null ? null : JSON.parse(r); }
+    localStorage.setItem(k, JSON.stringify(v));
+  }catch(e){ return null; }
+}
+let toastTimer;
+function toast(t, ms = 3000){ const el = $("toast"); clearTimeout(toastTimer); el.textContent = t; el.classList.add("show"); toastTimer = setTimeout(() => el.classList.remove("show"), ms); }
+$("year").textContent = new Date().getFullYear();
+
+// ---------- Contactos ----------
+// Cada contacto: {id, nombre, tels:[...], apodos:[...]}
+let contactos = store("llama_contactos") || [];
+function guardar(){ store("llama_contactos", contactos); pintaLista(); $("avisoVacio").hidden = contactos.length > 0; }
+function nid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function limpiaTel(t){ return (t || "").replace(/[^\d+]/g, ""); }
+
+function normaliza(s){
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9ñ ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Quita «llama a», «llámame a», «llamar a», «marca a», «telefonea a», etc.
+function sacaNombre(frase){
+  let t = normaliza(frase);
+  t = t.replace(/^(oye |vale |venga |por favor )+/, "");
+  t = t.replace(/^(puedes |quiero )?(llama(me|r|le)?|llamada|marca(r)?|telefonea(r)?|telefono|ponme con|pasame con|habla(r)? con|contacta(r)? con)( a| al| con| de)?\s*/, "");
+  t = t.replace(/\s*(por favor|ahora|ya)$/, "");
+  t = t.replace(/^(el|la|los|las|mi|a)\s+/, "");
+  return t.trim();
+}
+
+function lev(a, b){
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({length: n + 1}, (_, i) => i);
+  for (let i = 1; i <= m; i++){
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function parecido(a, b){ const d = lev(a, b); return 1 - d / Math.max(a.length, b.length); }
+
+// Puntúa lo dicho contra un nombre (0 a 1)
+function puntuaNombre(dicho, nombre){
+  const n = normaliza(nombre); if (!n || !dicho) return 0;
+  if (n === dicho) return 1;
+  const pn = n.split(" "), pd = dicho.split(" ");
+  if (n.startsWith(dicho + " ") || pn[0] === dicho) return 0.93;
+  // todas las palabras dichas aparecen en el nombre
+  if (pd.every(w => pn.some(x => x === w))) return 0.9;
+  if (pd.every(w => pn.some(x => x.startsWith(w) && w.length >= 3))) return 0.82;
+  // parecido palabra a palabra (errores del dictado)
+  let suma = 0;
+  for (const w of pd){ let mejor = 0; for (const x of pn) mejor = Math.max(mejor, parecido(w, x)); suma += mejor; }
+  const porPalabra = suma / pd.length;
+  return Math.max(porPalabra * 0.85, parecido(dicho, n) * 0.85);
+}
+function busca(dicho){
+  const res = [];
+  for (const c of contactos){
+    let p = puntuaNombre(dicho, c.nombre);
+    for (const a of (c.apodos || [])) p = Math.max(p, puntuaNombre(dicho, a) + 0.02);
+    if (p >= 0.6) res.push({c, p});
+  }
+  return res.sort((x, y) => y.p - x.p);
+}
+
+// ---------- Llamar ----------
+let cuentaTimer = null;
+function limpiaEleccion(){ $("elegir").innerHTML = ""; }
+function cancelaCuenta(){ clearInterval(cuentaTimer); cuentaTimer = null; $("cuenta").style.display = "none"; }
+
+function llamar(c, tel){
+  cancelaCuenta(); limpiaEleccion();
+  store("llama_ultimo", c.id);
+  c.usos = (c.usos || 0) + 1; guardar();
+  $("estado").textContent = "📞 Llamando a " + c.nombre;
+  location.href = "tel:" + limpiaTel(tel);
+}
+
+function preparaLlamada(c){
+  limpiaEleccion();
+  const tels = (c.tels || []).filter(Boolean);
+  if (!tels.length){ $("estado").textContent = c.nombre + " no tiene teléfono"; return; }
+  if (tels.length > 1){
+    $("estado").textContent = "¿A qué número de " + c.nombre + "?";
+    tels.forEach(t => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "op";
+      b.innerHTML = "<b></b><span></span>"; b.firstChild.textContent = c.nombre; b.lastChild.textContent = t;
+      b.onclick = () => llamar(c, t); $("elegir").appendChild(b);
+    });
+    return;
+  }
+  // Cuenta atrás corta para poder cancelar si ha entendido mal
+  let s = 2;
+  $("estado").textContent = "📞 " + c.nombre;
+  $("cuenta").style.display = "flex";
+  $("cuentaTxt").textContent = "Llamando en " + s + "…";
+  cancelaCuenta(); $("cuenta").style.display = "flex";
+  cuentaTimer = setInterval(() => {
+    s--;
+    if (s <= 0){ llamar(c, tels[0]); return; }
+    $("cuentaTxt").textContent = "Llamando en " + s + "…";
+  }, 1000);
+}
+$("cancelar").onclick = () => { cancelaCuenta(); $("estado").textContent = "Cancelado"; };
+
+function procesa(frase){
+  cancelaCuenta(); limpiaEleccion();
+  $("oido").textContent = "«" + frase + "»";
+  // Si dice un número, se marca tal cual
+  const soloNum = frase.replace(/[^\d+]/g, "");
+  if (soloNum.length >= 9 && soloNum.length >= frase.replace(/\s/g, "").length * 0.6){
+    $("estado").textContent = "📞 Llamando al " + soloNum; location.href = "tel:" + soloNum; return;
+  }
+  if (!contactos.length){ $("estado").textContent = "Primero añade tus contactos"; $("hoja").hidden = false; return; }
+  const dicho = sacaNombre(frase);
+  if (!dicho){ $("estado").textContent = "¿A quién llamo?"; return; }
+  const r = busca(dicho);
+  if (!r.length){ $("estado").textContent = "No encuentro a «" + dicho + "»"; return; }
+  // Una opción clara: llama. Varias parecidas: pregunta.
+  if (r.length === 1 || r[0].p - r[1].p >= 0.08 || r[0].p === 1 && r[1].p < 1){ preparaLlamada(r[0].c); return; }
+  $("estado").textContent = "¿Cuál de ellos?";
+  r.slice(0, 6).forEach(({c}) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "op";
+    b.innerHTML = "<b></b><span></span>"; b.firstChild.textContent = c.nombre; b.lastChild.textContent = (c.tels || [])[0] || "";
+    b.onclick = () => preparaLlamada(c); $("elegir").appendChild(b);
+  });
+}
+
+$("formEscribir").onsubmit = e => { e.preventDefault(); const t = $("texto").value.trim(); if (t){ procesa(t); $("texto").value = ""; $("texto").blur(); } };
+
+// ---------- Micrófono ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, escuchando = false;
+function nombresParaAyuda(){ return contactos.flatMap(c => [c.nombre, ...(c.apodos || [])]); }
+function escucha(){
+  if (!SR){ $("estado").textContent = "Este navegador no entiende la voz. Usa Chrome."; return; }
+  if (escuchando){ try{ rec.stop(); }catch(e){} return; }
+  cancelaCuenta(); limpiaEleccion();
+  rec = new SR();
+  rec.lang = "es-ES"; rec.interimResults = true; rec.maxAlternatives = 5; rec.continuous = false;
+  let final = false;
+  rec.onstart = () => { escuchando = true; $("mic").classList.add("escuchando"); $("estado").textContent = "Te escucho…"; $("oido").textContent = ""; };
+  rec.onresult = ev => {
+    const r = ev.results[ev.results.length - 1];
+    $("oido").textContent = "«" + r[0].transcript + "»";
+    if (r.isFinal && !final){
+      final = true;
+      // De las alternativas del dictado, se queda con la que mejor encaja con un contacto
+      let mejor = r[0].transcript, mejorP = -1;
+      for (let i = 0; i < r.length; i++){
+        const alt = r[i].transcript, b = busca(sacaNombre(alt));
+        const p = b.length ? b[0].p : 0;
+        if (p > mejorP + 0.05){ mejorP = p; mejor = alt; }
+      }
+      procesa(mejor);
+    }
+  };
+  rec.onerror = ev => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") $("estado").textContent = "Dale permiso al micrófono";
+    else if (ev.error === "no-speech") $("estado").textContent = "No te he oído. Pulsa otra vez";
+    else if (ev.error === "network") $("estado").textContent = "Sin conexión para entender la voz";
+    else if (ev.error !== "aborted") $("estado").textContent = "No te he entendido. Pulsa otra vez";
+  };
+  rec.onend = () => { escuchando = false; $("mic").classList.remove("escuchando"); if (!final && $("estado").textContent === "Te escucho…") $("estado").textContent = "Pulsa y di «llama a…»"; };
+  try{ rec.start(); }catch(e){}
+}
+$("mic").onclick = escucha;
+
+// ---------- Hoja de contactos ----------
+$("abrirContactos").onclick = () => { pintaLista(); $("hoja").hidden = false; };
+$("cerrarHoja").onclick = () => $("hoja").hidden = true;
+$("hoja").addEventListener("click", e => { if (e.target === $("hoja")) $("hoja").hidden = true; });
+let editando = null;
+$("mostrarForm").onclick = () => { editando = null; $("formContacto").reset(); $("guardarC").textContent = "Guardar"; $("formContacto").hidden = !$("formContacto").hidden; if (!$("formContacto").hidden) $("cNombre").focus(); };
+$("formContacto").onsubmit = e => {
+  e.preventDefault();
+  const nombre = $("cNombre").value.trim(), tel = $("cTel").value.trim();
+  const apodos = $("cApodo").value.split(",").map(s => s.trim()).filter(Boolean);
+  if (!nombre || !tel) return;
+  if (editando){
+    const c = contactos.find(x => x.id === editando);
+    if (c){ c.nombre = nombre; c.tels = [tel, ...(c.tels || []).slice(1).filter(t => t !== tel)]; c.apodos = apodos; }
+  } else contactos.push({id: nid(), nombre, tels: [tel], apodos});
+  editando = null; $("formContacto").reset(); $("formContacto").hidden = true; guardar(); toast("Guardado");
+};
+
+$("importar").onclick = async () => {
+  if (!("contacts" in navigator && "ContactsManager" in window)){
+    toast("Tu navegador no deja leer los contactos. Ábrela en Chrome de Android o añádelos a mano.", 5000); return;
+  }
+  try{
+    const sel = await navigator.contacts.select(["name", "tel"], {multiple: true});
+    let nuevos = 0, act = 0;
+    for (const s of sel){
+      const nombre = (s.name || []).find(Boolean); const tels = [...new Set((s.tel || []).map(t => t.trim()).filter(Boolean))];
+      if (!nombre || !tels.length) continue;
+      const ya = contactos.find(c => normaliza(c.nombre) === normaliza(nombre));
+      if (ya){ ya.tels = [...new Set([...(ya.tels || []), ...tels])]; act++; }
+      else { contactos.push({id: nid(), nombre, tels, apodos: []}); nuevos++; }
+    }
+    guardar();
+    toast(nuevos + " contactos nuevos" + (act ? ", " + act + " actualizados" : ""));
+  }catch(e){ if (e && e.name !== "AbortError") toast("No se pudieron traer los contactos"); }
+};
+
+$("buscaC").oninput = pintaLista;
+function pintaLista(){
+  const q = normaliza($("buscaC").value);
+  const l = $("lista"); l.innerHTML = "";
+  const orden = [...contactos].sort((a, b) => (b.usos || 0) - (a.usos || 0) || a.nombre.localeCompare(b.nombre, "es"));
+  for (const c of orden){
+    if (q && !normaliza(c.nombre + " " + (c.apodos || []).join(" ")).includes(q)) continue;
+    const d = document.createElement("div"); d.className = "contacto";
+    d.innerHTML = '<div class="datos"><b></b><small></small></div><button type="button" title="Llamar">📞</button><button type="button" title="Editar">✏️</button><button type="button" title="Borrar">🗑️</button>';
+    d.querySelector("b").textContent = c.nombre;
+    d.querySelector("small").textContent = (c.tels || []).join(" · ") + ((c.apodos || []).length ? "  —  también: " + c.apodos.join(", ") : "");
+    const [bLl, bEd, bBo] = d.querySelectorAll("button");
+    bLl.onclick = () => { $("hoja").hidden = true; preparaLlamada(c); };
+    bEd.onclick = () => {
+      editando = c.id; $("formContacto").hidden = false; $("guardarC").textContent = "Guardar cambios";
+      $("cNombre").value = c.nombre; $("cTel").value = (c.tels || [])[0] || ""; $("cApodo").value = (c.apodos || []).join(", ");
+      $("hoja").querySelector(".panel").scrollTop = 0; $("cNombre").focus();
+    };
+    bBo.onclick = () => { if (confirm("¿Borrar a " + c.nombre + "?")){ contactos = contactos.filter(x => x.id !== c.id); guardar(); } };
+    l.appendChild(d);
+  }
+  if (!l.children.length) l.innerHTML = '<p class="aviso">' + (contactos.length ? "Ninguno coincide" : "Sin contactos todavía") + "</p>";
+}
+$("avisoVacio").hidden = contactos.length > 0;
+
+// ---------- Aviso de actualización (cambiar APP_VERSION en cada actualización) ----------
+const APP_VERSION = "2026.10.25-1";
+(() => {
+  const prev = store("llama_version");
+  store("llama_version", APP_VERSION);
+  if (prev !== null && prev !== APP_VERSION) toast("LLAMA-LORENZITO se ha actualizado", 4000);
+})();
+
+// ---------- Instalar ----------
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; $("install").hidden = false; });
+window.addEventListener("appinstalled", () => { $("install").hidden = true; installEvt = null; toast("LLAMA-LORENZITO instalada"); });
+$("install").onclick = async () => {
+  if (installEvt){ installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){} installEvt = null; $("install").hidden = true; return; }
+  toast("En iPhone: Compartir → «Añadir a pantalla de inicio»", 5000);
+};
+const enApp = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !enApp) $("install").hidden = false;
+
+// ---------- Service worker y versión nueva ----------
+if ("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).then(r => r.update()).catch(() => {});
+  let recargada = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!recargada){ recargada = true; location.reload(); } });
+}
+async function buscarVersionNueva(){
+  try{
+    const t = await (await fetch("./?v=" + Date.now(), {cache: "no-store"})).text();
+    const m = t.match(/const APP_VERSION = "([^"]+)"/);
+    if (m && m[1] !== APP_VERSION){
+      let ult = 0; try{ ult = +sessionStorage.getItem("llama_recarga") || 0; }catch(e){}
+      if (Date.now() - ult > 15000){ try{ sessionStorage.setItem("llama_recarga", Date.now()); }catch(e){} location.reload(); }
+    }
+  }catch(e){}
+}
+buscarVersionNueva();
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") buscarVersionNueva(); });
+window.addEventListener("pageshow", e => { if (e.persisted) buscarVersionNueva(); });
+</script>
+</body>
+</html>
